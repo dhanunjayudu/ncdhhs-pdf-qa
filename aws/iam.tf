@@ -85,9 +85,9 @@ resource "aws_iam_role_policy" "bedrock_access" {
           "bedrock:GetFoundationModel"
         ]
         Resource = [
-          "arn:aws:bedrock:${var.aws_region}::foundation-model/${local.selected_models.primary_model_id}",
-          "arn:aws:bedrock:${var.aws_region}::foundation-model/${local.selected_models.fast_model_id}",
-          "arn:aws:bedrock:${var.aws_region}::foundation-model/${local.selected_models.embedding_model_id}"
+          "arn:aws:bedrock:${var.aws_region}::foundation-model/${local.primary_model_id}",
+          "arn:aws:bedrock:${var.aws_region}::foundation-model/${local.fast_model_id}",
+          "arn:aws:bedrock:${var.aws_region}::foundation-model/${local.embedding_model_id}"
         ]
       },
       {
@@ -96,25 +96,6 @@ resource "aws_iam_role_policy" "bedrock_access" {
           "bedrock:ListFoundationModels"
         ]
         Resource = "*"
-      },
-      # Bedrock Agent and Knowledge Base permissions
-      {
-        Effect = "Allow"
-        Action = [
-          "bedrock-agent:Retrieve",
-          "bedrock-agent:RetrieveAndGenerate",
-          "bedrock-agent:GetKnowledgeBase",
-          "bedrock-agent:ListDataSources",
-          "bedrock-agent:GetDataSource",
-          "bedrock-agent:StartIngestionJob",
-          "bedrock-agent:GetIngestionJob",
-          "bedrock-agent:ListIngestionJobs"
-        ]
-        Resource = [
-          aws_bedrock_knowledge_base.ncdhhs_pdf_kb.arn,
-          "${aws_bedrock_knowledge_base.ncdhhs_pdf_kb.arn}/*",
-          aws_bedrock_data_source.ncdhhs_pdf_documents.arn
-        ]
       },
       # Bedrock Guardrail permissions
       {
@@ -139,16 +120,6 @@ resource "aws_iam_role_policy" "bedrock_access" {
         Resource = [
           aws_s3_bucket.bedrock_knowledge_base.arn,
           "${aws_s3_bucket.bedrock_knowledge_base.arn}/*"
-        ]
-      },
-      # OpenSearch Serverless permissions
-      {
-        Effect = "Allow"
-        Action = [
-          "aoss:APIAccessAll"
-        ]
-        Resource = [
-          aws_opensearchserverless_collection.bedrock_knowledge_base.arn
         ]
       }
     ]

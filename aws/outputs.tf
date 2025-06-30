@@ -134,22 +134,7 @@ output "vector_database_config" {
   }
 }
 
-# Bedrock Knowledge Base Outputs
-output "bedrock_knowledge_base_id" {
-  description = "ID of the Bedrock Knowledge Base"
-  value       = aws_bedrock_knowledge_base.ncdhhs_pdf_kb.id
-}
-
-output "bedrock_knowledge_base_arn" {
-  description = "ARN of the Bedrock Knowledge Base"
-  value       = aws_bedrock_knowledge_base.ncdhhs_pdf_kb.arn
-}
-
-output "bedrock_data_source_id" {
-  description = "ID of the Bedrock Data Source"
-  value       = aws_bedrock_data_source.ncdhhs_pdf_documents.data_source_id
-}
-
+# Bedrock Core Outputs (without Knowledge Base resources)
 output "bedrock_guardrail_id" {
   description = "ID of the Bedrock Guardrail"
   value       = aws_bedrock_guardrail.ncdhhs_content_filter.guardrail_id
@@ -170,65 +155,53 @@ output "bedrock_s3_bucket_arn" {
   value       = aws_s3_bucket.bedrock_knowledge_base.arn
 }
 
-output "opensearch_serverless_collection_arn" {
-  description = "ARN of the OpenSearch Serverless collection"
-  value       = aws_opensearchserverless_collection.bedrock_knowledge_base.arn
-}
-
-output "opensearch_serverless_collection_endpoint" {
-  description = "Endpoint of the OpenSearch Serverless collection"
-  value       = aws_opensearchserverless_collection.bedrock_knowledge_base.collection_endpoint
-}
-
-output "bedrock_knowledge_base_role_arn" {
-  description = "ARN of the Bedrock Knowledge Base IAM role"
-  value       = aws_iam_role.bedrock_knowledge_base.arn
-}
-
 output "bedrock_configuration" {
-  description = "Complete Bedrock configuration for application"
+  description = "Core Bedrock configuration for application"
   value = {
-    knowledge_base_id     = aws_bedrock_knowledge_base.ncdhhs_pdf_kb.id
-    data_source_id       = aws_bedrock_data_source.ncdhhs_pdf_documents.data_source_id
     guardrail_id         = aws_bedrock_guardrail.ncdhhs_content_filter.guardrail_id
     guardrail_version    = aws_bedrock_guardrail.ncdhhs_content_filter.version
     s3_bucket           = aws_s3_bucket.bedrock_knowledge_base.bucket
-    opensearch_collection_arn = aws_opensearchserverless_collection.bedrock_knowledge_base.arn
-    models_enabled      = var.bedrock_models_to_enable
+    models_enabled      = var.bedrock_models_to_enable[var.bedrock_model_preference]
     region             = var.aws_region
+    primary_model_id   = local.primary_model_id
+    fast_model_id      = local.fast_model_id
+    embedding_model_id = local.embedding_model_id
   }
 }
 
 output "bedrock_environment_variables" {
   description = "Environment variables for backend application"
   value = {
-    BEDROCK_KNOWLEDGE_BASE_ID = aws_bedrock_knowledge_base.ncdhhs_pdf_kb.id
-    BEDROCK_DATA_SOURCE_ID   = aws_bedrock_data_source.ncdhhs_pdf_documents.data_source_id
     BEDROCK_GUARDRAIL_ID     = aws_bedrock_guardrail.ncdhhs_content_filter.guardrail_id
     BEDROCK_GUARDRAIL_VERSION = aws_bedrock_guardrail.ncdhhs_content_filter.version
     S3_KNOWLEDGE_BASE_BUCKET = aws_s3_bucket.bedrock_knowledge_base.bucket
-    OPENSEARCH_COLLECTION_ARN = aws_opensearchserverless_collection.bedrock_knowledge_base.arn
     AWS_REGION              = var.aws_region
+    BEDROCK_PRIMARY_MODEL   = local.primary_model_id
+    BEDROCK_FAST_MODEL      = local.fast_model_id
+    BEDROCK_EMBEDDING_MODEL = local.embedding_model_id
   }
   sensitive = false
 }
 
 output "bedrock_setup_complete" {
-  description = "Confirmation that Bedrock infrastructure is set up"
+  description = "Confirmation that core Bedrock infrastructure is set up"
   value = {
     status = "complete"
-    message = "Bedrock Knowledge Base, Guardrails, and supporting infrastructure have been created successfully"
+    message = "Core Bedrock Guardrails and supporting infrastructure have been created successfully"
     next_steps = [
       "1. Enable model access in AWS Bedrock Console",
       "2. Upload documents to S3 bucket: ${aws_s3_bucket.bedrock_knowledge_base.bucket}/documents/",
-      "3. Sync the data source to index documents",
-      "4. Update backend environment variables",
-      "5. Test the enhanced Q&A functionality"
+      "3. Update backend environment variables",
+      "4. Test the enhanced Q&A functionality"
     ]
     console_urls = {
       bedrock_console = "https://${var.aws_region}.console.aws.amazon.com/bedrock/home?region=${var.aws_region}"
-      knowledge_base = "https://${var.aws_region}.console.aws.amazon.com/bedrock/home?region=${var.aws_region}#/knowledge-bases/${aws_bedrock_knowledge_base.ncdhhs_pdf_kb.id}"
       s3_bucket = "https://s3.console.aws.amazon.com/s3/buckets/${aws_s3_bucket.bedrock_knowledge_base.bucket}"
     }
+    models_to_enable = [
+      local.primary_model_id,
+      local.fast_model_id,
+      local.embedding_model_id
+    ]
   }
 }

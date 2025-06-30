@@ -65,15 +65,7 @@ resource "aws_ecs_task_definition" "backend" {
           name  = "OPENSEARCH_INDEX"
           value = "ncdhhs-documents"
         },
-        # Bedrock Knowledge Base configuration
-        {
-          name  = "BEDROCK_KNOWLEDGE_BASE_ID"
-          value = aws_bedrock_knowledge_base.ncdhhs_pdf_kb.id
-        },
-        {
-          name  = "BEDROCK_DATA_SOURCE_ID"
-          value = aws_bedrock_data_source.ncdhhs_pdf_documents.data_source_id
-        },
+        # Bedrock Core configuration
         {
           name  = "BEDROCK_GUARDRAIL_ID"
           value = aws_bedrock_guardrail.ncdhhs_content_filter.guardrail_id
@@ -87,8 +79,16 @@ resource "aws_ecs_task_definition" "backend" {
           value = aws_s3_bucket.bedrock_knowledge_base.bucket
         },
         {
-          name  = "OPENSEARCH_COLLECTION_ARN"
-          value = aws_opensearchserverless_collection.bedrock_knowledge_base.arn
+          name  = "BEDROCK_PRIMARY_MODEL"
+          value = local.primary_model_id
+        },
+        {
+          name  = "BEDROCK_FAST_MODEL"
+          value = local.fast_model_id
+        },
+        {
+          name  = "BEDROCK_EMBEDDING_MODEL"
+          value = local.embedding_model_id
         },
         # Container environment detection
         {
