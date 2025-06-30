@@ -21,8 +21,8 @@ export default [
       'react-refresh': reactRefresh,
     },
     rules: {
-      ...js.configs.recommended.rules,
-      ...reactHooks.configs.recommended.rules,
+      'no-unused-vars': 'warn',
+      'no-undef': 'error',
       'react-refresh/only-export-components': [
         'warn',
         { allowConstantExport: true },

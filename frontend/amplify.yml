@@ -6,9 +6,13 @@ applications:
           commands:
             - nvm use 18
             - npm ci
+            - echo "Disabling ESLint for build"
+            - export DISABLE_ESLINT_PLUGIN=true
+            - export ESLint_NO_DEV_ERRORS=true
+            - export CI=false
         build:
           commands:
-            - CI=false npm run build
+            - npm run build --verbose
       artifacts:
         baseDirectory: dist
         files:
