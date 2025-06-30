@@ -95,6 +95,60 @@ resource "aws_iam_role_policy" "bedrock_access" {
           "bedrock:ListFoundationModels"
         ]
         Resource = "*"
+      },
+      # Bedrock Agent and Knowledge Base permissions
+      {
+        Effect = "Allow"
+        Action = [
+          "bedrock-agent:Retrieve",
+          "bedrock-agent:RetrieveAndGenerate",
+          "bedrock-agent:GetKnowledgeBase",
+          "bedrock-agent:ListDataSources",
+          "bedrock-agent:GetDataSource",
+          "bedrock-agent:StartIngestionJob",
+          "bedrock-agent:GetIngestionJob",
+          "bedrock-agent:ListIngestionJobs"
+        ]
+        Resource = [
+          aws_bedrock_knowledge_base.ncdhhs_pdf_kb.arn,
+          "${aws_bedrock_knowledge_base.ncdhhs_pdf_kb.arn}/*",
+          aws_bedrock_data_source.ncdhhs_pdf_documents.arn
+        ]
+      },
+      # Bedrock Guardrail permissions
+      {
+        Effect = "Allow"
+        Action = [
+          "bedrock:GetGuardrail",
+          "bedrock:ApplyGuardrail"
+        ]
+        Resource = [
+          aws_bedrock_guardrail.ncdhhs_content_filter.guardrail_arn
+        ]
+      },
+      # S3 access for Knowledge Base bucket
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject",
+          "s3:PutObject",
+          "s3:DeleteObject",
+          "s3:ListBucket"
+        ]
+        Resource = [
+          aws_s3_bucket.bedrock_knowledge_base.arn,
+          "${aws_s3_bucket.bedrock_knowledge_base.arn}/*"
+        ]
+      },
+      # OpenSearch Serverless permissions
+      {
+        Effect = "Allow"
+        Action = [
+          "aoss:APIAccessAll"
+        ]
+        Resource = [
+          aws_opensearchserverless_collection.bedrock_knowledge_base.arn
+        ]
       }
     ]
   })

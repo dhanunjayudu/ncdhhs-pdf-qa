@@ -65,6 +65,31 @@ resource "aws_ecs_task_definition" "backend" {
           name  = "OPENSEARCH_INDEX"
           value = "ncdhhs-documents"
         },
+        # Bedrock Knowledge Base configuration
+        {
+          name  = "BEDROCK_KNOWLEDGE_BASE_ID"
+          value = aws_bedrock_knowledge_base.ncdhhs_pdf_kb.id
+        },
+        {
+          name  = "BEDROCK_DATA_SOURCE_ID"
+          value = aws_bedrock_data_source.ncdhhs_pdf_documents.data_source_id
+        },
+        {
+          name  = "BEDROCK_GUARDRAIL_ID"
+          value = aws_bedrock_guardrail.ncdhhs_content_filter.guardrail_id
+        },
+        {
+          name  = "BEDROCK_GUARDRAIL_VERSION"
+          value = aws_bedrock_guardrail.ncdhhs_content_filter.version
+        },
+        {
+          name  = "S3_KNOWLEDGE_BASE_BUCKET"
+          value = aws_s3_bucket.bedrock_knowledge_base.bucket
+        },
+        {
+          name  = "OPENSEARCH_COLLECTION_ARN"
+          value = aws_opensearchserverless_collection.bedrock_knowledge_base.arn
+        },
         # Container environment detection
         {
           name  = "AWS_EXECUTION_ENV"
