@@ -4,10 +4,11 @@ applications:
       phases:
         preBuild:
           commands:
+            - nvm use 18
             - npm ci
         build:
           commands:
-            - npm run build
+            - CI=false npm run build
       artifacts:
         baseDirectory: dist
         files:
