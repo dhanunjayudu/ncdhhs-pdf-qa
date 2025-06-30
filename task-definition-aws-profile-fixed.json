@@ -1,0 +1,83 @@
+{
+    "family": "ncdhhs-pdf-qa-dev-backend",
+    "taskRoleArn": "arn:aws:iam::942713336312:role/ncdhhs-pdf-qa-dev-ECSTaskRole",
+    "executionRoleArn": "arn:aws:iam::942713336312:role/ncdhhs-pdf-qa-dev-ECSTaskExecutionRole",
+    "networkMode": "awsvpc",
+    "requiresCompatibilities": ["FARGATE"],
+    "cpu": "1024",
+    "memory": "2048",
+    "containerDefinitions": [
+        {
+            "name": "ncdhhs-pdf-qa-dev-backend",
+            "image": "942713336312.dkr.ecr.us-east-1.amazonaws.com/ncdhhs-pdf-qa-backend:aws-profile-fixed",
+            "cpu": 0,
+            "portMappings": [
+                {
+                    "containerPort": 8000,
+                    "hostPort": 8000,
+                    "protocol": "tcp"
+                }
+            ],
+            "essential": true,
+            "environment": [
+                {
+                    "name": "AWS_REGION",
+                    "value": "us-east-1"
+                },
+                {
+                    "name": "OPENSEARCH_ENDPOINT",
+                    "value": "https://vpc-ncdhhs-pdf-qa-opensearch-kuqxszpumb6yail7yttzdlfnvq.us-east-1.es.amazonaws.com"
+                },
+                {
+                    "name": "PDF_DOWNLOAD_TIMEOUT",
+                    "value": "180"
+                },
+                {
+                    "name": "AWS_EXECUTION_ENV",
+                    "value": "AWS_ECS_FARGATE"
+                },
+                {
+                    "name": "AWS_SHARED_CREDENTIALS_FILE",
+                    "value": "/dev/null"
+                },
+                {
+                    "name": "S3_BUCKET_NAME",
+                    "value": "ncdhhs-pdf-qa-dev-docs-942713336312-v2"
+                },
+                {
+                    "name": "OPENSEARCH_INDEX",
+                    "value": "ncdhhs-documents"
+                },
+                {
+                    "name": "REDIS_URL",
+                    "value": "redis://ncdhhs-pdf-qa-dev-redis.lcaxxm.ng.0001.use1.cache.amazonaws.com:6379"
+                },
+                {
+                    "name": "AWS_CONFIG_FILE",
+                    "value": "/dev/null"
+                }
+            ],
+            "mountPoints": [],
+            "volumesFrom": [],
+            "logConfiguration": {
+                "logDriver": "awslogs",
+                "options": {
+                    "awslogs-group": "/ecs/ncdhhs-pdf-qa-dev-backend",
+                    "awslogs-region": "us-east-1",
+                    "awslogs-stream-prefix": "ecs"
+                }
+            },
+            "healthCheck": {
+                "command": [
+                    "CMD-SHELL",
+                    "curl -f http://localhost:8000/health || exit 1"
+                ],
+                "interval": 30,
+                "timeout": 5,
+                "retries": 3,
+                "startPeriod": 60
+            },
+            "systemControls": []
+        }
+    ]
+}
