@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, Download, MessageCircle, Loader2, AlertCircle, Zap, Brain } from 'lucide-react';
-import EnhancedPDFProcessor from './components/EnhancedPDFProcessor';
+import { FileText, Download, MessageCircle, Loader2, AlertCircle, Upload, Database } from 'lucide-react';
+import SimplifiedPDFProcessor from './components/SimplifiedPDFProcessor';
 import EnhancedChatInterface from './components/EnhancedChatInterface';
 import DocumentList from './components/DocumentList';
 
@@ -12,6 +12,7 @@ function App() {
   const [systemStatus, setSystemStatus] = useState(null);
 
   const handleDocumentsProcessed = (processedDocs) => {
+    // For simplified approach, we just track that documents were processed
     setDocuments(prev => [...prev, ...processedDocs]);
     setActiveTab('chat');
   };
@@ -37,9 +38,9 @@ function App() {
   }, []);
 
   const tabs = [
-    { id: 'process', name: 'Process PDFs', icon: FileText, color: 'blue' },
+    { id: 'process', name: 'Process PDFs', icon: Upload, color: 'blue' },
     { id: 'chat', name: 'Q&A Assistant', icon: MessageCircle, color: 'green', badge: documents.length },
-    { id: 'documents', name: 'Documents', icon: Download, color: 'purple', badge: documents.length }
+    { id: 'documents', name: 'Documents', icon: FileText, color: 'purple' }
   ];
 
   const TabButton = ({ tab, isActive, onClick }) => {
@@ -76,14 +77,14 @@ function App() {
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center space-x-3">
               <div className="flex items-center space-x-2">
-                <Brain className="w-8 h-8 text-blue-600" />
-                <Zap className="w-6 h-6 text-yellow-500" />
+                <Database className="w-8 h-8 text-blue-600" />
+                <Upload className="w-6 h-6 text-green-500" />
               </div>
               <div>
                 <h1 className="text-xl font-bold text-gray-900">
                   {import.meta.env.VITE_APP_TITLE || 'NCDHHS PDF Q&A Assistant'}
                 </h1>
-                <p className="text-sm text-gray-500">Enhanced with AWS Bedrock AI</p>
+                <p className="text-sm text-gray-500">Simplified S3 + Bedrock Integration</p>
               </div>
             </div>
             
@@ -141,7 +142,7 @@ function App() {
         <div className="bg-white rounded-lg shadow-sm">
           {activeTab === 'process' && (
             <div className="p-6">
-              <EnhancedPDFProcessor
+              <SimplifiedPDFProcessor
                 onDocumentsProcessed={handleDocumentsProcessed}
                 onProcessingStatus={handleProcessingStatus}
               />
@@ -161,59 +162,89 @@ function App() {
           )}
         </div>
 
-        {/* Features Overview */}
-        <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-white p-6 rounded-lg shadow-sm border">
-            <div className="flex items-center space-x-3 mb-4">
-              <Zap className="w-8 h-8 text-yellow-500" />
-              <h3 className="text-lg font-semibold">Batch Processing</h3>
+        {/* Architecture Overview */}
+        <div className="mt-8 bg-white p-6 rounded-lg shadow-sm border">
+          <h3 className="text-lg font-semibold mb-4">Simplified Architecture</h3>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="text-center p-4 bg-blue-50 rounded-lg">
+              <Upload className="w-8 h-8 text-blue-600 mx-auto mb-2" />
+              <div className="font-medium">1. Extract & Upload</div>
+              <div className="text-sm text-gray-600">PDFs → S3 Bucket</div>
             </div>
-            <p className="text-gray-600 text-sm">
-              Process multiple PDFs efficiently with automatic knowledge base creation and progress tracking.
-            </p>
-            <div className="mt-3 flex items-center space-x-2 text-xs text-gray-500">
-              <span>✅ Batch processing</span>
-              <span>✅ Progress tracking</span>
-              <span>✅ Auto knowledge base</span>
+            
+            <div className="text-center p-4 bg-green-50 rounded-lg">
+              <Database className="w-8 h-8 text-green-600 mx-auto mb-2" />
+              <div className="font-medium">2. Auto Index</div>
+              <div className="text-sm text-gray-600">Bedrock Knowledge Base</div>
             </div>
-          </div>
-
-          <div className="bg-white p-6 rounded-lg shadow-sm border">
-            <div className="flex items-center space-x-3 mb-4">
-              <Brain className="w-8 h-8 text-blue-500" />
-              <h3 className="text-lg font-semibold">Bedrock AI</h3>
+            
+            <div className="text-center p-4 bg-purple-50 rounded-lg">
+              <MessageCircle className="w-8 h-8 text-purple-600 mx-auto mb-2" />
+              <div className="font-medium">3. AI Q&A</div>
+              <div className="text-sm text-gray-600">Bedrock Models</div>
             </div>
-            <p className="text-gray-600 text-sm">
-              Enhanced Q&A powered by AWS Bedrock with content guardrails and intelligent document search.
-            </p>
-            <div className="mt-3 flex items-center space-x-2 text-xs text-gray-500">
-              <span>✅ Advanced AI</span>
-              <span>✅ Content filtering</span>
-              <span>✅ Smart search</span>
-            </div>
-          </div>
-
-          <div className="bg-white p-6 rounded-lg shadow-sm border">
-            <div className="flex items-center space-x-3 mb-4">
-              <FileText className="w-8 h-8 text-green-500" />
-              <h3 className="text-lg font-semibold">Document Management</h3>
-            </div>
-            <p className="text-gray-600 text-sm">
-              Automatic document indexing with OpenSearch integration for fast and accurate information retrieval.
-            </p>
-            <div className="mt-3 flex items-center space-x-2 text-xs text-gray-500">
-              <span>✅ Auto indexing</span>
-              <span>✅ Fast search</span>
-              <span>✅ Source tracking</span>
+            
+            <div className="text-center p-4 bg-yellow-50 rounded-lg">
+              <FileText className="w-8 h-8 text-yellow-600 mx-auto mb-2" />
+              <div className="font-medium">4. Smart Answers</div>
+              <div className="text-sm text-gray-600">With Sources</div>
             </div>
           </div>
         </div>
 
-        {/* Backend Integration Status */}
+        {/* Benefits */}
+        <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="bg-white p-6 rounded-lg shadow-sm border">
+            <div className="flex items-center space-x-3 mb-4">
+              <Upload className="w-8 h-8 text-blue-500" />
+              <h3 className="text-lg font-semibold">Direct S3 Upload</h3>
+            </div>
+            <p className="text-gray-600 text-sm">
+              PDFs are uploaded directly to S3 with timestamps, eliminating complex processing pipelines and storage redundancy.
+            </p>
+            <div className="mt-3 flex items-center space-x-2 text-xs text-gray-500">
+              <span>✅ No redundant storage</span>
+              <span>✅ Automatic timestamping</span>
+              <span>✅ Simple architecture</span>
+            </div>
+          </div>
+
+          <div className="bg-white p-6 rounded-lg shadow-sm border">
+            <div className="flex items-center space-x-3 mb-4">
+              <Database className="w-8 h-8 text-green-500" />
+              <h3 className="text-lg font-semibold">Auto Knowledge Base</h3>
+            </div>
+            <p className="text-gray-600 text-sm">
+              Bedrock Knowledge Base automatically indexes new S3 documents, providing instant search and Q&A capabilities.
+            </p>
+            <div className="mt-3 flex items-center space-x-2 text-xs text-gray-500">
+              <span>✅ Auto indexing</span>
+              <span>✅ Vector search</span>
+              <span>✅ Real-time sync</span>
+            </div>
+          </div>
+
+          <div className="bg-white p-6 rounded-lg shadow-sm border">
+            <div className="flex items-center space-x-3 mb-4">
+              <MessageCircle className="w-8 h-8 text-purple-500" />
+              <h3 className="text-lg font-semibold">Smart Q&A</h3>
+            </div>
+            <p className="text-gray-600 text-sm">
+              AI-powered question answering with content guardrails, source attribution, and confidence scoring.
+            </p>
+            <div className="mt-3 flex items-center space-x-2 text-xs text-gray-500">
+              <span>✅ Content filtering</span>
+              <span>✅ Source tracking</span>
+              <span>✅ Confidence scores</span>
+            </div>
+          </div>
+        </div>
+
+        {/* System Integration Status */}
         {systemStatus && (
           <div className="mt-8 bg-white p-6 rounded-lg shadow-sm border">
             <h3 className="text-lg font-semibold mb-4">System Integration Status</h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               <div className="text-center">
                 <div className={`w-3 h-3 rounded-full mx-auto mb-2 ${
                   systemStatus.status === 'healthy' ? 'bg-green-500' : 'bg-red-500'
@@ -225,21 +256,23 @@ function App() {
               </div>
               
               <div className="text-center">
-                <div className="w-3 h-3 rounded-full bg-green-500 mx-auto mb-2" />
-                <div className="text-sm font-medium">OpenSearch</div>
-                <div className="text-xs text-gray-500">Ready</div>
-              </div>
-              
-              <div className="text-center">
-                <div className="w-3 h-3 rounded-full bg-green-500 mx-auto mb-2" />
+                <div className={`w-3 h-3 rounded-full mx-auto mb-2 ${
+                  systemStatus.services?.s3 === 'healthy' ? 'bg-green-500' : 'bg-yellow-500'
+                }`} />
                 <div className="text-sm font-medium">S3 Storage</div>
-                <div className="text-xs text-gray-500">Available</div>
+                <div className="text-xs text-gray-500">
+                  {systemStatus.services?.s3 === 'healthy' ? 'Ready' : 'Check Config'}
+                </div>
               </div>
               
               <div className="text-center">
-                <div className="w-3 h-3 rounded-full bg-yellow-500 mx-auto mb-2" />
-                <div className="text-sm font-medium">Bedrock Models</div>
-                <div className="text-xs text-gray-500">Enable in Console</div>
+                <div className={`w-3 h-3 rounded-full mx-auto mb-2 ${
+                  systemStatus.services?.bedrock === 'healthy' ? 'bg-green-500' : 'bg-yellow-500'
+                }`} />
+                <div className="text-sm font-medium">Bedrock KB</div>
+                <div className="text-xs text-gray-500">
+                  {systemStatus.services?.bedrock === 'healthy' ? 'Ready' : 'Setup Required'}
+                </div>
               </div>
             </div>
           </div>
@@ -251,16 +284,19 @@ function App() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex items-center justify-between">
             <div className="text-sm text-gray-500">
-              © 2024 NCDHHS PDF Q&A Assistant v2.0 - Enhanced with AWS Bedrock
+              © 2024 NCDHHS PDF Q&A Assistant v3.0 - Simplified S3 + Bedrock Architecture
             </div>
             <div className="flex items-center space-x-4 text-sm text-gray-500">
               <span>Powered by:</span>
               <span className="flex items-center space-x-1">
-                <Brain className="w-4 h-4" />
+                <Database className="w-4 h-4" />
                 <span>AWS Bedrock</span>
               </span>
               <span>•</span>
-              <span>OpenSearch</span>
+              <span className="flex items-center space-x-1">
+                <Upload className="w-4 h-4" />
+                <span>S3</span>
+              </span>
               <span>•</span>
               <span>React</span>
             </div>
