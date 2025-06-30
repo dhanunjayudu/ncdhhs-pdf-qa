@@ -85,8 +85,9 @@ resource "aws_iam_role_policy" "bedrock_access" {
           "bedrock:GetFoundationModel"
         ]
         Resource = [
-          for model in var.enable_bedrock_models :
-          "arn:aws:bedrock:${var.aws_region}::foundation-model/${model}"
+          "arn:aws:bedrock:${var.aws_region}::foundation-model/${local.selected_models.primary_model_id}",
+          "arn:aws:bedrock:${var.aws_region}::foundation-model/${local.selected_models.fast_model_id}",
+          "arn:aws:bedrock:${var.aws_region}::foundation-model/${local.selected_models.embedding_model_id}"
         ]
       },
       {

@@ -2,31 +2,37 @@
 # This file creates the complete Bedrock infrastructure for NCDHHS PDF Q&A
 
 locals {
+  # Select models based on preference
+  selected_models = var.bedrock_models_to_enable[var.bedrock_model_preference]
+  
   bedrock_models = {
     # Primary AI model for Q&A
-    claude_sonnet = {
-      id          = "anthropic.claude-3-sonnet-20240229-v1:0"
-      name        = "Claude 3 Sonnet"
-      description = "High-quality model for complex Q&A with guardrails support"
+    primary = {
+      id          = local.selected_models.primary_model_id
+      name        = "Primary Q&A Model"
+      description = "High-quality model for complex Q&A tasks"
       status      = "ACTIVE"
     }
     
-    # Backup AI model for Q&A
-    claude_haiku = {
-      id          = "anthropic.claude-3-haiku-20240307-v1:0"
-      name        = "Claude 3 Haiku"
+    # Fast AI model for Q&A
+    fast = {
+      id          = local.selected_models.fast_model_id
+      name        = "Fast Q&A Model"
       description = "Fast model for simple Q&A tasks"
       status      = "ACTIVE"
     }
     
     # Text embedding model for knowledge base
-    titan_embed = {
-      id          = "amazon.titan-embed-text-v1"
-      name        = "Titan Text Embeddings v1"
+    embedding = {
+      id          = local.selected_models.embedding_model_id
+      name        = "Text Embeddings"
       description = "Text embeddings for semantic search in knowledge base"
       status      = "ACTIVE"
     }
   }
+  
+  # Embedding model ARN for knowledge base
+  embedding_model_arn = "arn:aws:bedrock:${var.aws_region}::foundation-model/${local.selected_models.embedding_model_id}"
 }
 
 # Random suffix for unique resource names
@@ -148,7 +154,7 @@ resource "aws_iam_role_policy" "bedrock_knowledge_base_models" {
           "bedrock:InvokeModel"
         ]
         Resource = [
-          "arn:aws:bedrock:${var.aws_region}::foundation-model/amazon.titan-embed-text-v1"
+          local.embedding_model_arn
         ]
       }
     ]
@@ -374,7 +380,7 @@ resource "aws_bedrock_knowledge_base" "ncdhhs_pdf_kb" {
   knowledge_base_configuration {
     type = "VECTOR"
     vector_knowledge_base_configuration {
-      embedding_model_arn = "arn:aws:bedrock:${var.aws_region}::foundation-model/amazon.titan-embed-text-v1"
+      embedding_model_arn = local.embedding_model_arn
       embedding_model_configuration {
         bedrock_embedding_model_configuration {
           dimensions = 1536

@@ -74,14 +74,57 @@ variable "pdf_download_timeout" {
   default     = 180
 }
 
+# Updated Bedrock model configuration with available alternatives
+variable "bedrock_model_preference" {
+  description = "Preferred Bedrock model set to use"
+  type        = string
+  default     = "nova"  # Options: "nova", "titan", "claude2", "claude3"
+  validation {
+    condition     = contains(["nova", "titan", "claude2", "claude3"], var.bedrock_model_preference)
+    error_message = "Model preference must be one of: nova, titan, claude2, claude3."
+  }
+}
+
+variable "bedrock_models_to_enable" {
+  description = "Map of Bedrock models to enable based on preference"
+  type = map(object({
+    primary_model_id     = string
+    fast_model_id       = string
+    embedding_model_id  = string
+    description         = string
+  }))
+  default = {
+    nova = {
+      primary_model_id    = "amazon.nova-pro-v1:0"
+      fast_model_id      = "amazon.nova-lite-v1:0"
+      embedding_model_id = "amazon.titan-embed-text-v2:0"
+      description        = "Amazon Nova models - Latest generation, cost-effective"
+    }
+    titan = {
+      primary_model_id    = "amazon.titan-text-premier-v1:0"
+      fast_model_id      = "amazon.titan-text-express-v1"
+      embedding_model_id = "amazon.titan-embed-text-v2:0"
+      description        = "Amazon Titan models - Reliable and proven"
+    }
+    claude2 = {
+      primary_model_id    = "anthropic.claude-v2:1"
+      fast_model_id      = "anthropic.claude-instant-v1"
+      embedding_model_id = "amazon.titan-embed-text-v2:0"
+      description        = "Claude 2 models - High quality responses"
+    }
+    claude3 = {
+      primary_model_id    = "anthropic.claude-3-sonnet-20240229-v1:0"
+      fast_model_id      = "anthropic.claude-3-haiku-20240307-v1:0"
+      embedding_model_id = "amazon.titan-embed-text-v1"
+      description        = "Claude 3 models - Latest Anthropic models (if available)"
+    }
+  }
+}
+
 variable "enable_bedrock_models" {
-  description = "List of Bedrock models to enable access for"
+  description = "List of Bedrock models to enable access for (computed from preference)"
   type        = list(string)
-  default = [
-    "anthropic.claude-3-sonnet-20240229-v1:0",
-    "anthropic.claude-3-haiku-20240307-v1:0", 
-    "amazon.titan-embed-text-v1"
-  ]
+  default     = []  # Will be computed based on bedrock_model_preference
 }
 
 # OpenSearch variables
@@ -122,12 +165,6 @@ variable "opensearch_collection_name" {
   default     = "ncdhhs-knowledge-base"
 }
 
-variable "embedding_model_arn" {
-  description = "ARN of the embedding model to use"
-  type        = string
-  default     = "arn:aws:bedrock:us-east-1::foundation-model/amazon.titan-embed-text-v1"
-}
-
 variable "chunk_size" {
   description = "Maximum tokens per chunk for document processing"
   type        = number
@@ -144,30 +181,4 @@ variable "enable_bedrock_guardrails" {
   description = "Enable Bedrock guardrails for content filtering"
   type        = bool
   default     = true
-}
-
-variable "bedrock_models_to_enable" {
-  description = "Map of Bedrock models to enable with their configurations"
-  type = map(object({
-    model_id    = string
-    description = string
-    enabled     = bool
-  }))
-  default = {
-    claude_sonnet = {
-      model_id    = "anthropic.claude-3-sonnet-20240229-v1:0"
-      description = "High-quality model for complex Q&A with guardrails support"
-      enabled     = true
-    }
-    claude_haiku = {
-      model_id    = "anthropic.claude-3-haiku-20240307-v1:0"
-      description = "Fast model for simple Q&A tasks"
-      enabled     = true
-    }
-    titan_embed = {
-      model_id    = "amazon.titan-embed-text-v1"
-      description = "Text embeddings for semantic search in knowledge base"
-      enabled     = true
-    }
-  }
 }
