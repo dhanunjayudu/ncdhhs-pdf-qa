@@ -102,10 +102,9 @@ function App() {
                 </div>
               )}
               
-              {systemStatus?.active_jobs > 0 && (
-                <div className="flex items-center space-x-2 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
-                  <Loader2 className="w-3 h-3 animate-spin" />
-                  <span>{systemStatus.active_jobs} active jobs</span>
+              {systemStatus?.version && (
+                <div className="text-xs text-gray-500">
+                  v{systemStatus.version}
                 </div>
               )}
             </div>
@@ -167,15 +166,15 @@ function App() {
           <div className="bg-white p-6 rounded-lg shadow-sm border">
             <div className="flex items-center space-x-3 mb-4">
               <Zap className="w-8 h-8 text-yellow-500" />
-              <h3 className="text-lg font-semibold">Async Processing</h3>
+              <h3 className="text-lg font-semibold">Batch Processing</h3>
             </div>
             <p className="text-gray-600 text-sm">
-              Process large batches of PDFs asynchronously with real-time progress updates via WebSocket connections.
+              Process multiple PDFs efficiently with automatic knowledge base creation and progress tracking.
             </p>
             <div className="mt-3 flex items-center space-x-2 text-xs text-gray-500">
-              <span>✅ Background processing</span>
+              <span>✅ Batch processing</span>
               <span>✅ Progress tracking</span>
-              <span>✅ Job management</span>
+              <span>✅ Auto knowledge base</span>
             </div>
           </div>
 
@@ -185,30 +184,66 @@ function App() {
               <h3 className="text-lg font-semibold">Bedrock AI</h3>
             </div>
             <p className="text-gray-600 text-sm">
-              Enhanced Q&A powered by AWS Bedrock with Claude 3 Sonnet, knowledge base integration, and content guardrails.
+              Enhanced Q&A powered by AWS Bedrock with content guardrails and intelligent document search.
             </p>
             <div className="mt-3 flex items-center space-x-2 text-xs text-gray-500">
               <span>✅ Advanced AI</span>
               <span>✅ Content filtering</span>
-              <span>✅ Source attribution</span>
+              <span>✅ Smart search</span>
             </div>
           </div>
 
           <div className="bg-white p-6 rounded-lg shadow-sm border">
             <div className="flex items-center space-x-3 mb-4">
               <FileText className="w-8 h-8 text-green-500" />
-              <h3 className="text-lg font-semibold">Smart Search</h3>
+              <h3 className="text-lg font-semibold">Document Management</h3>
             </div>
             <p className="text-gray-600 text-sm">
-              Hybrid search combining semantic understanding and keyword matching for the most relevant results.
+              Automatic document indexing with OpenSearch integration for fast and accurate information retrieval.
             </p>
             <div className="mt-3 flex items-center space-x-2 text-xs text-gray-500">
-              <span>✅ Semantic search</span>
-              <span>✅ Keyword matching</span>
-              <span>✅ Relevance scoring</span>
+              <span>✅ Auto indexing</span>
+              <span>✅ Fast search</span>
+              <span>✅ Source tracking</span>
             </div>
           </div>
         </div>
+
+        {/* Backend Integration Status */}
+        {systemStatus && (
+          <div className="mt-8 bg-white p-6 rounded-lg shadow-sm border">
+            <h3 className="text-lg font-semibold mb-4">System Integration Status</h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="text-center">
+                <div className={`w-3 h-3 rounded-full mx-auto mb-2 ${
+                  systemStatus.status === 'healthy' ? 'bg-green-500' : 'bg-red-500'
+                }`} />
+                <div className="text-sm font-medium">Backend API</div>
+                <div className="text-xs text-gray-500">
+                  {systemStatus.status === 'healthy' ? 'Connected' : 'Disconnected'}
+                </div>
+              </div>
+              
+              <div className="text-center">
+                <div className="w-3 h-3 rounded-full bg-green-500 mx-auto mb-2" />
+                <div className="text-sm font-medium">OpenSearch</div>
+                <div className="text-xs text-gray-500">Ready</div>
+              </div>
+              
+              <div className="text-center">
+                <div className="w-3 h-3 rounded-full bg-green-500 mx-auto mb-2" />
+                <div className="text-sm font-medium">S3 Storage</div>
+                <div className="text-xs text-gray-500">Available</div>
+              </div>
+              
+              <div className="text-center">
+                <div className="w-3 h-3 rounded-full bg-yellow-500 mx-auto mb-2" />
+                <div className="text-sm font-medium">Bedrock Models</div>
+                <div className="text-xs text-gray-500">Enable in Console</div>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
 
       {/* Footer */}

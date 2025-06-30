@@ -26,9 +26,9 @@ const EnhancedChatInterface = ({ documents }) => {
   ]);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [searchMode, setSearchMode] = useState('hybrid'); // 'semantic', 'keyword', 'hybrid'
   const [useGuardrails, setUseGuardrails] = useState(true);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [backendStatus, setBackendStatus] = useState(null);
   const messagesEndRef = useRef(null);
 
   const scrollToBottom = () => {
@@ -38,6 +38,21 @@ const EnhancedChatInterface = ({ documents }) => {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Check backend status on mount
+  useEffect(() => {
+    const checkBackendStatus = async () => {
+      try {
+        const response = await axios.get(`${API_URL}/health`);
+        setBackendStatus(response.data);
+      } catch (error) {
+        console.error('Backend health check failed:', error);
+        setBackendStatus({ status: 'error', message: 'Backend unavailable' });
+      }
+    };
+
+    checkBackendStatus();
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -55,33 +70,25 @@ const EnhancedChatInterface = ({ documents }) => {
     setIsLoading(true);
 
     try {
-      // First, search for relevant documents
-      const searchResponse = await axios.post(`${API_URL}/search-documents`, {
-        query: userMessage.content,
-        search_mode: searchMode,
-        max_results: 5
-      });
-
-      // Then generate answer with Bedrock
-      const answerResponse = await axios.post(`${API_URL}/ask-question-bedrock`, {
+      // Use the current backend endpoint for Q&A
+      const response = await axios.post(`${API_URL}/ask-question`, {
         question: userMessage.content,
-        search_results: searchResponse.data.results,
         use_guardrails: useGuardrails,
-        search_mode: searchMode
+        max_results: 5
       });
 
       const assistantMessage = {
         id: Date.now() + 1,
         type: 'assistant',
-        content: answerResponse.data.answer,
+        content: response.data.answer,
         timestamp: new Date(),
         metadata: {
-          sources: answerResponse.data.sources || [],
-          confidence: answerResponse.data.confidence,
-          guardrails_applied: answerResponse.data.guardrails_applied,
-          model: answerResponse.data.model,
-          search_mode: searchMode,
-          processing_time: answerResponse.data.processing_time
+          sources: response.data.sources || [],
+          confidence: response.data.confidence,
+          guardrails_applied: response.data.guardrails_applied || useGuardrails,
+          model: response.data.model || 'bedrock-model',
+          processing_time: response.data.processing_time,
+          documents_searched: response.data.documents_searched || documents.length
         }
       };
 
@@ -90,10 +97,18 @@ const EnhancedChatInterface = ({ documents }) => {
     } catch (error) {
       console.error('Error getting response:', error);
       
+      let errorContent = 'Sorry, I encountered an error while processing your question. Please try again.';
+      
+      if (error.response?.status === 503) {
+        errorContent = 'The AI service is currently unavailable. Please check if Bedrock models are enabled in your AWS console.';
+      } else if (error.response?.data?.detail) {
+        errorContent = `Error: ${error.response.data.detail}`;
+      }
+      
       const errorMessage = {
         id: Date.now() + 1,
         type: 'error',
-        content: error.response?.data?.detail || 'Sorry, I encountered an error while processing your question. Please try again.',
+        content: errorContent,
         timestamp: new Date()
       };
 
@@ -153,9 +168,9 @@ const EnhancedChatInterface = ({ documents }) => {
                     {message.metadata.model}
                   </span>
                 )}
-                {message.metadata.search_mode && (
+                {message.metadata.documents_searched && (
                   <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full">
-                    {message.metadata.search_mode} search
+                    {message.metadata.documents_searched} docs searched
                   </span>
                 )}
                 {message.metadata.confidence && (
@@ -242,6 +257,19 @@ const EnhancedChatInterface = ({ documents }) => {
         </div>
         
         <div className="flex items-center space-x-2">
+          {backendStatus && (
+            <div className={`flex items-center space-x-1 px-2 py-1 rounded-full text-xs ${
+              backendStatus.status === 'healthy' 
+                ? 'bg-green-100 text-green-800' 
+                : 'bg-red-100 text-red-800'
+            }`}>
+              <div className={`w-2 h-2 rounded-full ${
+                backendStatus.status === 'healthy' ? 'bg-green-500' : 'bg-red-500'
+              }`} />
+              <span>{backendStatus.status === 'healthy' ? 'Online' : 'Offline'}</span>
+            </div>
+          )}
+          
           {useGuardrails && (
             <div className="flex items-center space-x-1 px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">
               <Shield className="w-3 h-3" />
@@ -260,31 +288,18 @@ const EnhancedChatInterface = ({ documents }) => {
       {/* Advanced Settings */}
       {showAdvanced && (
         <div className="p-4 bg-gray-50 border-b">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Search Mode
-              </label>
-              <select
-                value={searchMode}
-                onChange={(e) => setSearchMode(e.target.value)}
-                className="w-full px-3 py-1 border border-gray-300 rounded text-sm"
-              >
-                <option value="hybrid">🔄 Hybrid (Recommended)</option>
-                <option value="semantic">🧠 Semantic Search</option>
-                <option value="keyword">🔍 Keyword Search</option>
-              </select>
-            </div>
-            <div className="flex items-center">
-              <label className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  checked={useGuardrails}
-                  onChange={(e) => setUseGuardrails(e.target.checked)}
-                  className="rounded"
-                />
-                <span className="text-sm">Enable Content Guardrails</span>
-              </label>
+          <div className="flex items-center space-x-4">
+            <label className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                checked={useGuardrails}
+                onChange={(e) => setUseGuardrails(e.target.checked)}
+                className="rounded"
+              />
+              <span className="text-sm">Enable Content Guardrails</span>
+            </label>
+            <div className="text-xs text-gray-500">
+              Filters inappropriate content and PII data
             </div>
           </div>
         </div>
@@ -347,7 +362,9 @@ const EnhancedChatInterface = ({ documents }) => {
         <div className="mt-2 flex items-center justify-between text-xs text-gray-500">
           <span>{documents.length} documents available</span>
           <div className="flex items-center space-x-2">
-            <span>Mode: {searchMode}</span>
+            {backendStatus?.version && (
+              <span>Backend v{backendStatus.version}</span>
+            )}
             {useGuardrails && (
               <div className="flex items-center space-x-1">
                 <Shield className="w-3 h-3 text-green-500" />

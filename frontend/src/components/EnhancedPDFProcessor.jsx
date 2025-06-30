@@ -20,226 +20,120 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 const EnhancedPDFProcessor = ({ onDocumentsProcessed, onProcessingStatus }) => {
   const [url, setUrl] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
-  const [processingMode, setProcessingMode] = useState('async');
+  const [processingMode, setProcessingMode] = useState('batch');
   const [maxPdfs, setMaxPdfs] = useState(50);
-  const [currentJob, setCurrentJob] = useState(null);
   const [progress, setProgress] = useState(null);
-  const [websocket, setWebsocket] = useState(null);
   const [jobHistory, setJobHistory] = useState([]);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [currentStep, setCurrentStep] = useState('');
   
-  const wsRef = useRef(null);
-
-  // WebSocket connection for real-time updates
-  const connectWebSocket = (jobId) => {
-    const wsUrl = `${API_URL.replace('http', 'ws')}/ws/progress/${jobId}`;
-    const ws = new WebSocket(wsUrl);
-    
-    ws.onopen = () => {
-      console.log('WebSocket connected');
-      setWebsocket(ws);
-    };
-    
-    ws.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      console.log('WebSocket message:', data);
-      
-      if (data.type) {
-        // Handle different message types
-        switch (data.type) {
-          case 'started':
-            setProgress({
-              current: 0,
-              total: data.total,
-              percentage: 0,
-              message: data.message,
-              status: 'processing'
-            });
-            break;
-          case 'progress':
-            setProgress({
-              current: data.current,
-              total: data.total,
-              percentage: data.percentage,
-              message: data.message,
-              processed: data.processed,
-              failed: data.failed,
-              latest_result: data.latest_result
-            });
-            break;
-          case 'completed':
-            setProgress({
-              current: data.total,
-              total: data.total,
-              percentage: 100,
-              message: data.message,
-              processed: data.processed,
-              failed: data.failed,
-              status: 'completed'
-            });
-            setIsProcessing(false);
-            break;
-        }
-      } else {
-        // Handle regular status updates
-        setProgress({
-          current: data.processed + data.failed,
-          total: data.total,
-          percentage: data.percentage,
-          processed: data.processed,
-          failed: data.failed,
-          status: data.status
-        });
-        
-        if (data.status === 'completed' || data.status === 'completed_with_errors') {
-          setIsProcessing(false);
-        }
-      }
-    };
-    
-    ws.onclose = () => {
-      console.log('WebSocket disconnected');
-      setWebsocket(null);
-    };
-    
-    ws.onerror = (error) => {
-      console.error('WebSocket error:', error);
-    };
-    
-    wsRef.current = ws;
-    return ws;
-  };
-
-  // Cleanup WebSocket on unmount
-  useEffect(() => {
-    return () => {
-      if (wsRef.current) {
-        wsRef.current.close();
-      }
-    };
-  }, []);
-
-  // Poll job status for non-WebSocket updates
-  const pollJobStatus = async (jobId) => {
-    try {
-      const response = await axios.get(`${API_URL}/job-status/${jobId}`);
-      const jobData = response.data;
-      
-      setProgress({
-        current: jobData.progress.processed + jobData.progress.failed,
-        total: jobData.progress.total,
-        percentage: jobData.progress.percentage,
-        processed: jobData.progress.processed,
-        failed: jobData.progress.failed,
-        status: jobData.status
-      });
-      
-      if (jobData.status === 'completed' || jobData.status === 'completed_with_errors') {
-        setIsProcessing(false);
-        if (jobData.results && jobData.results.length > 0) {
-          onDocumentsProcessed(jobData.results.filter(r => r.status === 'success'));
-        }
-        return false; // Stop polling
-      }
-      
-      return true; // Continue polling
-    } catch (error) {
-      console.error('Error polling job status:', error);
-      return false;
-    }
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!url.trim()) return;
 
     setIsProcessing(true);
     setProgress(null);
-    setCurrentJob(null);
+    setCurrentStep('Extracting PDF links...');
     onProcessingStatus('Starting PDF extraction...');
 
     try {
-      // First, extract PDF links to show count
+      // Step 1: Extract PDF links
       const linksResponse = await axios.post(`${API_URL}/extract-pdf-links`, {
         url: url.trim()
       });
 
-      const pdfCount = linksResponse.data.count;
+      const pdfLinks = linksResponse.data.pdf_links || [];
+      const pdfCount = pdfLinks.length;
+      
+      if (pdfCount === 0) {
+        throw new Error('No PDF files found on the website');
+      }
+
+      setCurrentStep(`Found ${pdfCount} PDFs. Processing...`);
       onProcessingStatus(`Found ${pdfCount} PDF files. Starting processing...`);
 
-      // Start processing
-      const response = await axios.post(`${API_URL}/process-website-async`, {
-        url: url.trim(),
-        max_pdfs: maxPdfs,
-        processing_mode: processingMode
+      // Limit PDFs if requested
+      const linksToProcess = maxPdfs && pdfCount > maxPdfs ? pdfLinks.slice(0, maxPdfs) : pdfLinks;
+      
+      setProgress({
+        current: 0,
+        total: linksToProcess.length,
+        percentage: 0,
+        processed: 0,
+        failed: 0,
+        status: 'processing'
       });
 
-      const jobData = response.data;
-      setCurrentJob(jobData);
+      // Step 2: Process PDFs in batch
+      const batchResponse = await axios.post(`${API_URL}/process-pdf-batch`, {
+        pdf_urls: linksToProcess
+      });
+
+      const processedDocs = batchResponse.data.processed_documents || [];
+      const successCount = processedDocs.filter(doc => doc.status === 'success').length;
+      const failedCount = processedDocs.length - successCount;
+
+      setProgress({
+        current: processedDocs.length,
+        total: linksToProcess.length,
+        percentage: 100,
+        processed: successCount,
+        failed: failedCount,
+        status: 'completed'
+      });
+
+      setCurrentStep(`Processing completed: ${successCount} successful, ${failedCount} failed`);
+      onProcessingStatus(`Processing completed: ${successCount} successful, ${failedCount} failed`);
+
+      // Step 3: Create knowledge base if we have successful documents
+      if (successCount > 0) {
+        setCurrentStep('Creating knowledge base...');
+        onProcessingStatus('Creating knowledge base...');
+
+        try {
+          await axios.post(`${API_URL}/create-knowledge-base`, {
+            documents: processedDocs.filter(doc => doc.status === 'success')
+          });
+          
+          setCurrentStep('Knowledge base created successfully');
+          onProcessingStatus('Knowledge base created successfully');
+        } catch (kbError) {
+          console.warn('Knowledge base creation failed:', kbError);
+          setCurrentStep('Documents processed (knowledge base creation failed)');
+          onProcessingStatus('Documents processed (knowledge base creation failed)');
+        }
+
+        // Pass successful documents to parent
+        onDocumentsProcessed(processedDocs.filter(doc => doc.status === 'success'));
+      }
 
       // Add to job history
       setJobHistory(prev => [{
-        id: jobData.job_id,
+        id: Date.now(),
         url: url.trim(),
-        status: jobData.status,
-        totalPdfs: jobData.total_pdfs || pdfCount,
+        status: 'completed',
+        totalPdfs: linksToProcess.length,
+        processed: successCount,
+        failed: failedCount,
         createdAt: new Date().toISOString(),
-        processingMode: jobData.processing_mode
+        processingMode: processingMode
       }, ...prev.slice(0, 4)]); // Keep last 5 jobs
-
-      if (jobData.processing_mode === 'sync') {
-        // Handle synchronous response
-        setProgress({
-          current: jobData.results?.length || 0,
-          total: jobData.total_pdfs || pdfCount,
-          percentage: 100,
-          processed: jobData.processed || 0,
-          failed: jobData.failed || 0,
-          status: 'completed'
-        });
-        setIsProcessing(false);
-        
-        if (jobData.results) {
-          onDocumentsProcessed(jobData.results.filter(r => r.status === 'success'));
-        }
-      } else {
-        // Handle asynchronous response
-        onProcessingStatus(`Processing ${jobData.total_pdfs} PDFs asynchronously...`);
-        
-        // Connect WebSocket for real-time updates
-        connectWebSocket(jobData.job_id);
-        
-        // Fallback polling in case WebSocket fails
-        const pollInterval = setInterval(async () => {
-          const shouldContinue = await pollJobStatus(jobData.job_id);
-          if (!shouldContinue) {
-            clearInterval(pollInterval);
-          }
-        }, 3000);
-      }
 
     } catch (error) {
       console.error('Error processing website:', error);
-      setIsProcessing(false);
+      setCurrentStep(`Error: ${error.message}`);
       onProcessingStatus(`Error: ${error.response?.data?.detail || error.message}`);
-    }
-  };
-
-  const cancelJob = async () => {
-    if (currentJob?.job_id) {
-      try {
-        await axios.delete(`${API_URL}/job/${currentJob.job_id}`);
-        setIsProcessing(false);
-        setProgress(null);
-        setCurrentJob(null);
-        onProcessingStatus('Job cancelled');
-        
-        if (wsRef.current) {
-          wsRef.current.close();
-        }
-      } catch (error) {
-        console.error('Error cancelling job:', error);
-      }
+      
+      setProgress({
+        current: 0,
+        total: 0,
+        percentage: 0,
+        processed: 0,
+        failed: 0,
+        status: 'failed'
+      });
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -248,12 +142,14 @@ const EnhancedPDFProcessor = ({ onDocumentsProcessed, onProcessingStatus }) => {
 
     const getStatusColor = () => {
       if (progress.status === 'completed') return 'bg-green-500';
+      if (progress.status === 'failed') return 'bg-red-500';
       if (progress.failed > 0) return 'bg-yellow-500';
       return 'bg-blue-500';
     };
 
     const getStatusIcon = () => {
       if (progress.status === 'completed') return <CheckCircle className="w-5 h-5 text-green-500" />;
+      if (progress.status === 'failed') return <XCircle className="w-5 h-5 text-red-500" />;
       if (progress.failed > 0) return <AlertCircle className="w-5 h-5 text-yellow-500" />;
       return <Loader2 className="w-5 h-5 text-blue-500 animate-spin" />;
     };
@@ -264,7 +160,7 @@ const EnhancedPDFProcessor = ({ onDocumentsProcessed, onProcessingStatus }) => {
           <div className="flex items-center space-x-2">
             {getStatusIcon()}
             <span className="font-medium">
-              {progress.message || `Processing ${progress.current}/${progress.total} PDFs`}
+              {currentStep || `Processing ${progress.current}/${progress.total} PDFs`}
             </span>
           </div>
           <span className="text-sm text-gray-600">
@@ -284,12 +180,6 @@ const EnhancedPDFProcessor = ({ onDocumentsProcessed, onProcessingStatus }) => {
           {progress.failed > 0 && <span>❌ Failed: {progress.failed}</span>}
           <span>📄 Total: {progress.total}</span>
         </div>
-        
-        {progress.latest_result && (
-          <div className="mt-2 text-xs text-gray-500">
-            Latest: {progress.latest_result.url?.split('/').pop()}
-          </div>
-        )}
       </div>
     );
   };
@@ -299,7 +189,7 @@ const EnhancedPDFProcessor = ({ onDocumentsProcessed, onProcessingStatus }) => {
       <div className="flex-1">
         <div className="text-sm font-medium truncate">{job.url}</div>
         <div className="text-xs text-gray-500">
-          {job.totalPdfs} PDFs • {job.processingMode} • {new Date(job.createdAt).toLocaleTimeString()}
+          {job.totalPdfs} PDFs • {job.processed} processed • {new Date(job.createdAt).toLocaleTimeString()}
         </div>
       </div>
       <div className="flex items-center space-x-2">
@@ -364,8 +254,8 @@ const EnhancedPDFProcessor = ({ onDocumentsProcessed, onProcessingStatus }) => {
                       className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
                       disabled={isProcessing}
                     >
-                      <option value="async">🚀 Async (Recommended for large batches)</option>
-                      <option value="sync">⚡ Sync (For small batches &lt;5 PDFs)</option>
+                      <option value="batch">📦 Batch Processing (Recommended)</option>
+                      <option value="sequential">🔄 Sequential Processing</option>
                     </select>
                   </div>
 
@@ -386,7 +276,7 @@ const EnhancedPDFProcessor = ({ onDocumentsProcessed, onProcessingStatus }) => {
                 </div>
 
                 <div className="text-xs text-gray-500">
-                  💡 Async mode provides real-time progress updates and handles large batches efficiently
+                  💡 Batch processing handles multiple PDFs efficiently and creates a knowledge base automatically
                 </div>
               </div>
             )}
@@ -410,41 +300,11 @@ const EnhancedPDFProcessor = ({ onDocumentsProcessed, onProcessingStatus }) => {
                 </>
               )}
             </button>
-
-            {isProcessing && (
-              <button
-                type="button"
-                onClick={cancelJob}
-                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 flex items-center space-x-2"
-              >
-                <X className="w-4 h-4" />
-                <span>Cancel</span>
-              </button>
-            )}
           </div>
         </form>
 
         {/* Progress Display */}
         <ProgressBar progress={progress} />
-
-        {/* Current Job Info */}
-        {currentJob && (
-          <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-sm font-medium">Job ID: {currentJob.job_id}</div>
-                <div className="text-xs text-gray-600">
-                  Mode: {currentJob.processing_mode} • 
-                  {currentJob.estimated_time_minutes && ` Est. ${currentJob.estimated_time_minutes} min`}
-                </div>
-              </div>
-              <div className="text-right">
-                <div className="text-sm font-medium">{currentJob.total_pdfs} PDFs</div>
-                <div className="text-xs text-gray-600">{currentJob.status}</div>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Job History */}
