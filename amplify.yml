@@ -5,24 +5,33 @@ applications:
         preBuild:
           commands:
             - cd frontend
-            - echo "Installing dependencies..."
+            - echo "=== Environment Information ==="
+            - node --version
+            - npm --version
+            - echo "=== Installing Dependencies ==="
             - npm ci
-            - echo "Setting environment variables..."
+            - echo "=== Dependencies Installed Successfully ==="
+            - echo "=== Setting Build Environment ==="
             - export DISABLE_ESLINT_PLUGIN=true
             - export ESLint_NO_DEV_ERRORS=true
             - export CI=false
+            - echo "=== Environment Variables Set ==="
         build:
           commands:
-            - echo "Building React application..."
+            - echo "=== Starting React Build ==="
             - npm run build
-            - echo "Build completed successfully"
-            - echo "Listing build contents:"
+            - echo "=== Build Completed ==="
+            - echo "=== Verifying Build Output ==="
             - ls -la build/
+            - test -f build/index.html || (echo "❌ ERROR: index.html missing" && exit 1)
+            - test -d build/static || (echo "❌ ERROR: static directory missing" && exit 1)
+            - echo "✅ Build verification passed"
         postBuild:
           commands:
-            - echo "Post-build verification..."
-            - test -f build/index.html && echo "✅ index.html found" || echo "❌ index.html missing"
-            - test -d build/static && echo "✅ static directory found" || echo "❌ static directory missing"
+            - echo "=== Post-Build Verification ==="
+            - find build/ -name "*.js" | head -3
+            - find build/ -name "*.css" | head -3
+            - echo "=== Deployment Ready ==="
       artifacts:
         baseDirectory: frontend/build
         files:
