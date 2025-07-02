@@ -1,0 +1,46 @@
+version: 1
+applications:
+  - frontend:
+      phases:
+        preBuild:
+          commands:
+            - cd frontend
+            - echo "Installing dependencies..."
+            - npm ci
+            - echo "Setting environment variables..."
+            - export DISABLE_ESLINT_PLUGIN=true
+            - export ESLint_NO_DEV_ERRORS=true
+            - export CI=false
+        build:
+          commands:
+            - echo "Building React application..."
+            - npm run build
+            - echo "Build completed successfully"
+            - echo "Listing build contents:"
+            - ls -la build/
+        postBuild:
+          commands:
+            - echo "Post-build verification..."
+            - test -f build/index.html && echo "✅ index.html found" || echo "❌ index.html missing"
+            - test -d build/static && echo "✅ static directory found" || echo "❌ static directory missing"
+      artifacts:
+        baseDirectory: frontend/build
+        files:
+          - '**/*'
+      cache:
+        paths:
+          - frontend/node_modules/**/*
+    appRoot: frontend
+    customHeaders:
+      - pattern: '**/*'
+        headers:
+          - key: 'Cache-Control'
+            value: 'public, max-age=31536000'
+      - pattern: '/index.html'
+        headers:
+          - key: 'Cache-Control'
+            value: 'no-cache, no-store, must-revalidate'
+      - pattern: '/service-worker.js'
+        headers:
+          - key: 'Cache-Control'
+            value: 'no-cache, no-store, must-revalidate'

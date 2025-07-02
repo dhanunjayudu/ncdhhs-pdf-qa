@@ -4,17 +4,19 @@ applications:
       phases:
         preBuild:
           commands:
-            - nvm use 18
+            - echo "Installing dependencies..."
             - npm ci
-            - echo "Disabling ESLint for build"
+            - echo "Setting environment variables..."
             - export DISABLE_ESLINT_PLUGIN=true
             - export ESLint_NO_DEV_ERRORS=true
             - export CI=false
         build:
           commands:
-            - npm run build --verbose
+            - echo "Building React application..."
+            - npm run build
+            - echo "Build completed successfully"
       artifacts:
-        baseDirectory: dist
+        baseDirectory: build
         files:
           - '**/*'
       cache:

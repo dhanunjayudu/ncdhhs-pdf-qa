@@ -182,3 +182,9 @@ variable "enable_bedrock_guardrails" {
   type        = bool
   default     = true
 }
+
+variable "enable_bedrock_knowledge_base" {
+  description = "Enable creation of Bedrock Knowledge Base resources (may not be supported in all AWS provider versions)"
+  type        = bool
+  default     = true
+}

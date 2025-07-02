@@ -1,5 +1,5 @@
-# Core Bedrock Configuration (without Knowledge Base resources that may not be available)
-# This file creates the essential Bedrock infrastructure for NCDHHS PDF Q&A
+# Simplified S3 + Bedrock Configuration (Compatible with current AWS provider)
+# This creates the essential infrastructure for the simplified architecture
 
 locals {
   # Select models based on preference
@@ -45,13 +45,14 @@ resource "random_id" "bedrock_suffix" {
   byte_length = 4
 }
 
-# S3 bucket for Bedrock Knowledge Base documents
+# S3 bucket for Bedrock Knowledge Base documents (main storage)
 resource "aws_s3_bucket" "bedrock_knowledge_base" {
   bucket = "${local.name_prefix}-bedrock-kb-${random_id.bedrock_suffix.hex}"
   
   tags = merge(local.common_tags, {
     Name = "Bedrock Knowledge Base Bucket"
-    Purpose = "Document storage for Bedrock Knowledge Base"
+    Purpose = "Primary storage for PDF documents"
+    Architecture = "Simplified S3 + Bedrock"
   })
 }
 
@@ -79,6 +80,73 @@ resource "aws_s3_bucket_public_access_block" "bedrock_knowledge_base" {
   block_public_policy     = true
   ignore_public_acls      = true
   restrict_public_buckets = true
+}
+
+# IAM role for Bedrock Knowledge Base (for manual setup)
+resource "aws_iam_role" "bedrock_knowledge_base" {
+  name = "${local.name_prefix}-bedrock-kb-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "bedrock.amazonaws.com"
+        }
+      }
+    ]
+  })
+
+  tags = merge(local.common_tags, {
+    Name = "Bedrock Knowledge Base Role"
+  })
+}
+
+# IAM policy for Bedrock Knowledge Base S3 access
+resource "aws_iam_role_policy" "bedrock_knowledge_base_s3" {
+  name = "${local.name_prefix}-bedrock-kb-s3-policy"
+  role = aws_iam_role.bedrock_knowledge_base.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject",
+          "s3:ListBucket",
+          "s3:GetBucketLocation"
+        ]
+        Resource = [
+          aws_s3_bucket.bedrock_knowledge_base.arn,
+          "${aws_s3_bucket.bedrock_knowledge_base.arn}/*"
+        ]
+      }
+    ]
+  })
+}
+
+# IAM policy for Bedrock model access
+resource "aws_iam_role_policy" "bedrock_knowledge_base_models" {
+  name = "${local.name_prefix}-bedrock-kb-models-policy"
+  role = aws_iam_role.bedrock_knowledge_base.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "bedrock:InvokeModel"
+        ]
+        Resource = [
+          local.embedding_model_arn
+        ]
+      }
+    ]
+  })
 }
 
 # Bedrock Guardrail for content filtering
@@ -251,6 +319,24 @@ resource "aws_cloudwatch_dashboard" "bedrock_monitoring" {
           stacked = false
           region  = var.aws_region
           title   = "Bedrock Token Usage"
+          period  = 300
+        }
+      },
+      {
+        type   = "metric"
+        x      = 0
+        y      = 12
+        width  = 12
+        height = 6
+
+        properties = {
+          metrics = [
+            ["AWS/S3", "NumberOfObjects", "BucketName", aws_s3_bucket.bedrock_knowledge_base.bucket, "StorageType", "AllStorageTypes"]
+          ]
+          view    = "timeSeries"
+          stacked = false
+          region  = var.aws_region
+          title   = "S3 Knowledge Base Documents"
           period  = 300
         }
       }

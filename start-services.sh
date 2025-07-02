@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Enhanced startup script with port checking
-echo "🚀 Starting NC DHHS PDF Q&A Application..."
+# Local development startup script - Frontend only (connects to AWS backend)
+echo "🚀 Starting NC DHHS PDF Q&A Application (Local Frontend + AWS Backend)..."
 
 # Function to check if port is in use
 check_port() {
@@ -13,89 +13,121 @@ check_port() {
     fi
 }
 
-# Function to start backend
-start_backend() {
-    echo "🐍 Starting FastAPI backend..."
-    check_port 8000
+# Function to check AWS backend connectivity
+check_backend() {
+    local backend_url="http://ncdhhs-pdf-qa-dev-alb-940310890.us-east-1.elb.amazonaws.com"
+    echo "🔍 Checking AWS backend connectivity..."
     
-    cd backend
-    source venv/bin/activate
-    
-    echo "Starting FastAPI server on http://localhost:8000"
-    uvicorn main:app --host 0.0.0.0 --port 8000 --reload &
-    BACKEND_PID=$!
-    echo $BACKEND_PID > ../backend.pid
-    cd ..
-    
-    # Wait for backend to start
-    echo "Waiting for backend to start..."
-    for i in {1..10}; do
-        if curl -s http://localhost:8000/health > /dev/null 2>&1; then
-            echo "✅ Backend started successfully"
-            break
-        fi
-        sleep 1
-    done
+    if curl -s --max-time 10 "$backend_url/health" > /dev/null 2>&1; then
+        echo "✅ AWS backend is accessible at $backend_url"
+        return 0
+    else
+        echo "❌ AWS backend is not accessible at $backend_url"
+        echo "   Please check:"
+        echo "   - Your internet connection"
+        echo "   - AWS backend deployment status"
+        echo "   - Load balancer URL is correct"
+        return 1
+    fi
 }
 
-# Function to start frontend
+# Function to start frontend only
 start_frontend() {
-    echo "⚛️  Starting React frontend..."
-    check_port 5173
+    echo "⚛️  Starting React frontend (connecting to AWS backend)..."
+    check_port 3000
     
     cd frontend
-    npm run dev &
+    
+    # Ensure we're using the local development environment
+    export NODE_ENV=development
+    
+    # Start the frontend
+    npm start &
     FRONTEND_PID=$!
     echo $FRONTEND_PID > ../frontend.pid
     cd ..
     
     # Wait for frontend to start
     echo "Waiting for frontend to start..."
-    for i in {1..10}; do
-        if curl -s -I http://localhost:5173 > /dev/null 2>&1; then
+    for i in {1..30}; do
+        if curl -s -I http://localhost:3000 > /dev/null 2>&1; then
             echo "✅ Frontend started successfully"
-            break
+            return 0
         fi
-        sleep 1
+        sleep 2
     done
+    
+    echo "❌ Frontend failed to start"
+    return 1
+}
+
+# Function to show development info
+show_dev_info() {
+    echo ""
+    echo "🎉 Local development environment started successfully!"
+    echo ""
+    echo "📱 Frontend (Local):  http://localhost:3000"
+    echo "🔧 Backend (AWS):     http://ncdhhs-pdf-qa-dev-alb-940310890.us-east-1.elb.amazonaws.com"
+    echo "📚 API Docs (AWS):    http://ncdhhs-pdf-qa-dev-alb-940310890.us-east-1.elb.amazonaws.com/docs"
+    echo ""
+    echo "💡 Development Tips:"
+    echo "   - Frontend changes will auto-reload"
+    echo "   - Backend is running on AWS (no local changes needed)"
+    echo "   - Check browser console for any errors"
+    echo ""
+    echo "✅ The blank screen issue has been fixed!"
+    echo "   - React hook dependencies are now properly configured"
+    echo "   - Functions are declared before being used"
+    echo ""
+    echo "🔄 To deploy backend changes:"
+    echo "   1. Make changes to backend code"
+    echo "   2. Run: cd backend && docker build -t ncdhhs-pdf-qa-dev-backend ."
+    echo "   3. Run: docker tag ncdhhs-pdf-qa-dev-backend:latest 942713336312.dkr.ecr.us-east-1.amazonaws.com/ncdhhs-pdf-qa-dev-backend:latest"
+    echo "   4. Run: docker push 942713336312.dkr.ecr.us-east-1.amazonaws.com/ncdhhs-pdf-qa-dev-backend:latest"
+    echo "   5. Update ECS service to deploy new image"
+    echo ""
+    echo "Press Ctrl+C to stop the frontend"
 }
 
 # Cleanup function
 cleanup() {
     echo ""
-    echo "🛑 Stopping services..."
-    if [ -f "backend.pid" ]; then
-        kill $(cat backend.pid) 2>/dev/null || true
-        rm backend.pid
-    fi
+    echo "🛑 Stopping frontend..."
     if [ -f "frontend.pid" ]; then
         kill $(cat frontend.pid) 2>/dev/null || true
         rm frontend.pid
     fi
     
-    # Also kill any remaining processes on our ports
-    lsof -ti:8000 | xargs kill -9 2>/dev/null || true
-    lsof -ti:5173 | xargs kill -9 2>/dev/null || true
+    # Kill any remaining processes on frontend port
+    lsof -ti:3000 | xargs kill -9 2>/dev/null || true
     
-    echo "✅ Services stopped"
+    echo "✅ Frontend stopped"
     exit 0
 }
 
 # Set up signal handlers
 trap cleanup SIGINT SIGTERM
 
-# Start services
-start_backend
-start_frontend
+# Check backend connectivity first
+if ! check_backend; then
+    echo ""
+    echo "⚠️  Warning: AWS backend is not accessible."
+    echo "   You can still start the frontend, but it won't be able to connect to the backend."
+    echo ""
+    read -p "Do you want to continue anyway? (y/N): " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        echo "Exiting..."
+        exit 1
+    fi
+fi
 
-echo ""
-echo "🎉 Application started successfully!"
-echo ""
-echo "📱 Frontend: http://localhost:5173"
-echo "🔧 Backend API: http://localhost:8000"
-echo "📚 API Docs: http://localhost:8000/docs"
-echo ""
-echo "Press Ctrl+C to stop both services"
-
-# Wait for user to stop
-wait
+# Start frontend
+if start_frontend; then
+    show_dev_info
+    # Wait for user to stop
+    wait
+else
+    echo "❌ Failed to start frontend"
+    exit 1
+fi

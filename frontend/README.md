@@ -11,12 +11,6 @@ This is the React frontend for the NC DHHS PDF Q&A Assistant application. It pro
 
 ## Environment Configuration
 
-The application uses environment variables for configuration. Copy `.env.example` to `.env` and update the values:
-
-```bash
-cp .env.example .env
-```
-
 ### Environment Variables
 
 - `VITE_API_URL`: Backend API URL (currently: http://ncdhhs-pdf-qa-dev-alb-940310890.us-east-1.elb.amazonaws.com)

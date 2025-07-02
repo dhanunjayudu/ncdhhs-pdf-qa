@@ -97,6 +97,23 @@ resource "aws_iam_role_policy" "bedrock_access" {
         ]
         Resource = "*"
       },
+      # Bedrock Agent and Knowledge Base permissions (for simplified architecture)
+      {
+        Effect = "Allow"
+        Action = [
+          "bedrock-agent:Retrieve",
+          "bedrock-agent:RetrieveAndGenerate",
+          "bedrock-agent:GetKnowledgeBase",
+          "bedrock-agent:ListDataSources",
+          "bedrock-agent:GetDataSource",
+          "bedrock-agent:StartIngestionJob",
+          "bedrock-agent:GetIngestionJob",
+          "bedrock-agent:ListIngestionJobs"
+        ]
+        Resource = [
+          "*"  # Allow all Knowledge Base operations - specific ARNs set after manual creation
+        ]
+      },
       # Bedrock Guardrail permissions
       {
         Effect = "Allow"
@@ -108,18 +125,30 @@ resource "aws_iam_role_policy" "bedrock_access" {
           aws_bedrock_guardrail.ncdhhs_content_filter.guardrail_arn
         ]
       },
-      # S3 access for Knowledge Base bucket
+      # S3 access for Knowledge Base bucket (simplified architecture)
       {
         Effect = "Allow"
         Action = [
           "s3:GetObject",
           "s3:PutObject",
           "s3:DeleteObject",
-          "s3:ListBucket"
+          "s3:ListBucket",
+          "s3:GetBucketLocation",
+          "s3:PutObjectMetadata"
         ]
         Resource = [
           aws_s3_bucket.bedrock_knowledge_base.arn,
           "${aws_s3_bucket.bedrock_knowledge_base.arn}/*"
+        ]
+      },
+      # OpenSearch Serverless permissions (if Knowledge Base enabled)
+      {
+        Effect = "Allow"
+        Action = [
+          "aoss:APIAccessAll"
+        ]
+        Resource = [
+          "*"  # Allow all OpenSearch operations - specific ARNs set after manual creation
         ]
       }
     ]

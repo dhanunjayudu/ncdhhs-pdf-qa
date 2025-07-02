@@ -134,7 +134,7 @@ output "vector_database_config" {
   }
 }
 
-# Bedrock Core Outputs (without Knowledge Base resources)
+# Simplified Bedrock Outputs (manual setup required)
 output "bedrock_guardrail_id" {
   description = "ID of the Bedrock Guardrail"
   value       = aws_bedrock_guardrail.ncdhhs_content_filter.guardrail_id
@@ -156,25 +156,33 @@ output "bedrock_s3_bucket_arn" {
 }
 
 output "bedrock_configuration" {
-  description = "Core Bedrock configuration for application"
+  description = "Simplified Bedrock configuration for application"
   value = {
+    knowledge_base_id     = null  # Manual setup required
+    data_source_id       = null  # Manual setup required
     guardrail_id         = aws_bedrock_guardrail.ncdhhs_content_filter.guardrail_id
     guardrail_version    = aws_bedrock_guardrail.ncdhhs_content_filter.version
     s3_bucket           = aws_s3_bucket.bedrock_knowledge_base.bucket
+    opensearch_collection_arn = null  # Manual setup required
     models_enabled      = var.bedrock_models_to_enable[var.bedrock_model_preference]
     region             = var.aws_region
     primary_model_id   = local.primary_model_id
     fast_model_id      = local.fast_model_id
     embedding_model_id = local.embedding_model_id
+    knowledge_base_enabled = false  # Manual setup required
+    architecture = "Simplified S3 + Manual Bedrock KB"
   }
 }
 
 output "bedrock_environment_variables" {
   description = "Environment variables for backend application"
   value = {
+    BEDROCK_KNOWLEDGE_BASE_ID = ""  # Set after manual Knowledge Base creation
+    BEDROCK_DATA_SOURCE_ID   = ""  # Set after manual Data Source creation
     BEDROCK_GUARDRAIL_ID     = aws_bedrock_guardrail.ncdhhs_content_filter.guardrail_id
     BEDROCK_GUARDRAIL_VERSION = aws_bedrock_guardrail.ncdhhs_content_filter.version
     S3_KNOWLEDGE_BASE_BUCKET = aws_s3_bucket.bedrock_knowledge_base.bucket
+    OPENSEARCH_COLLECTION_ARN = ""  # Set after manual OpenSearch collection creation
     AWS_REGION              = var.aws_region
     BEDROCK_PRIMARY_MODEL   = local.primary_model_id
     BEDROCK_FAST_MODEL      = local.fast_model_id
@@ -184,18 +192,23 @@ output "bedrock_environment_variables" {
 }
 
 output "bedrock_setup_complete" {
-  description = "Confirmation that core Bedrock infrastructure is set up"
+  description = "Confirmation that Bedrock infrastructure is set up"
   value = {
-    status = "complete"
-    message = "Core Bedrock Guardrails and supporting infrastructure have been created successfully"
+    status = "partial"
+    message = "Basic Bedrock infrastructure created - Knowledge Base requires manual setup"
+    architecture = "Simplified S3 + Manual Bedrock KB"
     next_steps = [
       "1. Enable model access in AWS Bedrock Console",
-      "2. Upload documents to S3 bucket: ${aws_s3_bucket.bedrock_knowledge_base.bucket}/documents/",
-      "3. Update backend environment variables",
-      "4. Test the enhanced Q&A functionality"
+      "2. Manually create Bedrock Knowledge Base in console using:",
+      "   - S3 Bucket: ${aws_s3_bucket.bedrock_knowledge_base.bucket}",
+      "   - IAM Role: ${aws_iam_role.bedrock_knowledge_base.arn}",
+      "3. Update backend environment variables with KB and DS IDs",
+      "4. Upload documents to S3 bucket: ${aws_s3_bucket.bedrock_knowledge_base.bucket}/documents/",
+      "5. Test the Q&A functionality"
     ]
     console_urls = {
       bedrock_console = "https://${var.aws_region}.console.aws.amazon.com/bedrock/home?region=${var.aws_region}"
+      knowledge_base = "https://${var.aws_region}.console.aws.amazon.com/bedrock/home?region=${var.aws_region}#/knowledge-bases"
       s3_bucket = "https://s3.console.aws.amazon.com/s3/buckets/${aws_s3_bucket.bedrock_knowledge_base.bucket}"
     }
     models_to_enable = [
@@ -203,5 +216,10 @@ output "bedrock_setup_complete" {
       local.fast_model_id,
       local.embedding_model_id
     ]
+    manual_setup_required = {
+      s3_bucket = aws_s3_bucket.bedrock_knowledge_base.bucket
+      iam_role_arn = aws_iam_role.bedrock_knowledge_base.arn
+      embedding_model = local.embedding_model_id
+    }
   }
 }

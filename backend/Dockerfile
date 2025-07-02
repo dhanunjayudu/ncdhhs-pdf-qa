@@ -28,5 +28,5 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
-# Use the container-optimized main.py
-CMD ["uvicorn", "main_container:app", "--host", "0.0.0.0", "--port", "8000"]
+# Use the updated main.py with Bedrock Knowledge Base integration
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
